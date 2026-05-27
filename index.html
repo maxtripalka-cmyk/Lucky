@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+  <title>LUCKY Roulette · Админ + Чат + Приглашения</title>
+  <style>
+    /* ... все стили остаются без изменений ... */
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; padding: 12px; transition: background 0.3s ease; background: linear-gradient(160deg, #0a1f0a 0%, #1a2e1a 100%); }
+    body[data-theme="green"] { background: linear-gradient(160deg, #0a1f0a 0%, #1a2e1a 100%); }
+    body[data-theme="red"] { background: linear-gradient(160deg, #2a0a0a 0%, #5a1515 100%); }
+    body[data-theme="dark"] { background: linear-gradient(160deg, #0a0a1a 0%, #12122e 100%); }
+    body[data-theme="pink"] { background: linear-gradient(160deg, #2a0a2a 0%, #4a154a 100%); }
+    body[data-theme="gold"] { background: linear-gradient(160deg, #2a1a0a 0%, #4a2a0a 100%); }
+    body[data-theme="ocean"] { background: linear-gradient(160deg, #0a2a3a 0%, #0a4a6a 100%); }
+    body[data-theme="sunset"] { background: linear-gradient(160deg, #3a1a2a 0%, #6a3a2a 100%); }
+    body[data-theme="forest"] { background: linear-gradient(160deg, #0a2a1a 0%, #1a4a2a 100%); }
+    body[data-theme="grape"] { background: linear-gradient(160deg, #2a0a3a 0%, #4a1a6a 100%); }
+    body[data-theme="coffee"] { background: linear-gradient(160deg, #2a1a0a 0%, #3a2a1a 100%); }
+    body[data-theme="ice"] { background: linear-gradient(160deg, #1a2a3a 0%, #2a4a6a 100%); }
+    body[data-theme="crimson"] { background: linear-gradient(160deg, #3a0a0a 0%, #6a2a2a 100%); }
+    body[data-theme="lime"] { background: linear-gradient(160deg, #1a3a0a 0%, #2a5a1a 100%); }
+    body[data-theme="space"] { background: linear-gradient(160deg, #0a0a2a 0%, #1a1a4a 100%); }
+    body[data-theme="haki"] { background: linear-gradient(160deg, #1a1a0a 0%, #3a3a1a 100%); }
+    
+    .glass-card { background: rgba(10, 15, 10, 0.55); backdrop-filter: blur(18px); border-radius: 32px; padding: 18px; border: 1px solid rgba(180, 150, 80, 0.5); box-shadow: 0 20px 35px rgba(0,0,0,0.4); }
+    .falling-cards { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: hidden; }
+    .falling-card { position: absolute; top: -100px; animation: fall linear infinite; opacity: 0.5; object-fit: contain; max-width: 80px; border-radius: 12px; }
+    @keyframes fall { 0% { transform: translateY(-100px) rotate(0deg); opacity: 0; } 10% { opacity: 0.5; } 90% { opacity: 0.5; } 100% { transform: translateY(110vh) rotate(360deg); opacity: 0; } }
+    @media (min-width: 901px) { .casino-container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; position: relative; z-index: 1; } .left-col { display: flex; flex-direction: column; gap: 16px; } }
+    @media (max-width: 900px) { .casino-container { display: flex; flex-direction: column; gap: 12px; } .wheel-row { flex-direction: column; align-items: center; } }
+    
+    .settings-fixed { position: fixed; top: 16px; right: 16px; width: 48px; height: 48px; border-radius: 50%; background: #2c2a1fcc; backdrop-filter: blur(8px); border: 2px solid #e6b422; color: #ffefc0; font-size: 24px; cursor: pointer; z-index: 100; display: flex; align-items: center; justify-content: center; transition: 0.1s; box-shadow: 0 2px 8px black; }
+    .settings-fixed:active { transform: scale(0.94); }
+    
+    .online-panel { background: rgba(0,0,0,0.6); border-radius: 28px; padding: 12px; margin-bottom: 16px; }
+    .online-status { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+    .room-code { font-size: 1rem; font-weight: bold; color: #e6b422; font-family: monospace; background: #00000066; padding: 5px 12px; border-radius: 40px; cursor: pointer; transition: 0.1s; }
+    .room-code:hover { background: #e6b42266; }
+    .online-btn { background: #4a5c2e; border: none; border-radius: 40px; padding: 6px 16px; color: white; cursor: pointer; font-weight: bold; }
+    .online-users { font-size: 0.7rem; color: #e6d5b3; }
+    
+    .chat-section { background: rgba(0,0,0,0.5); border-radius: 24px; margin-top: 16px; overflow: hidden; }
+    .chat-messages { height: 200px; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .chat-message { font-size: 0.75rem; padding: 4px 8px; border-radius: 16px; background: rgba(0,0,0,0.3); word-break: break-word; color: #f5e6c8; }
+    .chat-message.system { color: #e6b422; font-style: italic; }
+    .chat-message.admin { border-left: 3px solid #b22222; }
+    .chat-input-area { display: flex; padding: 8px; gap: 8px; border-top: 1px solid #b3975a; }
+    .chat-input { flex: 1; background: #3c3628; border: 1px solid #b3975a; border-radius: 40px; padding: 8px 12px; color: #f5e6c8; outline: none; }
+    .chat-input::placeholder { color: #8a7a5a; }
+    .chat-send { background: #4a5c2e; border: none; border-radius: 40px; padding: 8px 16px; color: white; cursor: pointer; }
+    
+    .notification-area { position: fixed; bottom: 20px; left: 20px; z-index: 150; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .notification { background: #2a2418; border-left: 4px solid #e6b422; border-radius: 12px; padding: 10px 16px; color: #ffefc0; font-size: 0.8rem; animation: slideIn 0.3s ease; box-shadow: 0 4px 12px black; pointer-events: auto; }
+    @keyframes slideIn { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    
+    .roulette-box { position: relative; width: min(280px, 65vw); height: min(280px, 65vw); margin: 0 auto; }
+    canvas { width: 100% !important; height: 100% !important; border-radius: 50%; box-shadow: 0 15px 30px black, 0 0 0 5px #3b2b1a, 0 0 0 8px #1f140a; }
+    .arrow { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 32px; color: #ffdd99; text-shadow: 0 0 10px #ff7700; pointer-events: none; }
+    .history-panel { background: rgba(0,0,0,0.5); border-radius: 24px; padding: 12px; width: 140px; }
+    .history-title { color: #e6b422; font-weight: bold; text-align: center; }
+    .history-list { max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
+    .history-item { background: rgba(0,0,0,0.5); border-radius: 20px; padding: 5px 10px; display: flex; justify-content: space-between; border-left: 4px solid; font-size: 0.7rem; color: #f0e6d5; }
+    .spin-btn { background: #b22222; color: white; font-size: 1.3rem; font-weight: bold; padding: 12px 28px; border-radius: 60px; border: none; cursor: pointer; width: 100%; max-width: 280px; margin: 0 auto; display: block; box-shadow: 0 5px 0 #5e0e0e; }
+    .spin-btn:active { transform: translateY(3px); }
+    .spin-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .power-bar { background: rgba(0,0,0,0.7); border-radius: 40px; padding: 6px 12px; text-align: center; color: #e6b422; font-size: 0.8rem; margin-top: 10px; }
+    .bank-section { background: rgba(0,0,0,0.5); border-radius: 28px; padding: 16px; margin-bottom: 16px; border: 2px solid #e6b422; }
+    .bank-title { color: #e6b422; font-weight: bold; text-align: center; }
+    .bank-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .bank-item { background: rgba(0,0,0,0.5); border-radius: 20px; padding: 8px; text-align: center; }
+    .bank-letter { font-size: 1.3rem; font-weight: 800; color: #e6b422; }
+    .bank-amount { font-size: 1.1rem; font-weight: bold; color: #fff0c0; }
+    .bank-input { width: 100%; background: #3c3628; border: 1px solid #b3975a; border-radius: 12px; padding: 5px; color: white; text-align: center; }
+    .bank-set-btn { background: #4a5c2e; border: none; border-radius: 12px; padding: 4px; margin-top: 5px; color: white; cursor: pointer; }
+    .bet-board { background: rgba(0,0,0,0.4); border-radius: 28px; padding: 14px; margin: 8px 0; }
+    .bet-header { display: flex; justify-content: space-between; color: #e6b422; margin-bottom: 12px; font-weight: bold; }
+    .numbers-table { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; max-height: 280px; overflow-y: auto; }
+    .num-card { background: #2d2a1f; border-radius: 12px; text-align: center; padding: 8px 3px; font-weight: 800; font-size: 0.8rem; cursor: pointer; border: 1px solid #5e5238; color: #fff; }
+    .num-card.red { background: #b33a3a; }
+    .num-card.black { background: #2a2a2a; }
+    .num-card.green { background: #2a7a3a; color: #ffffcc; }
+    .num-card.selected-bet, .spec-btn.selected-bet { opacity: 0.5; box-shadow: inset 0 0 0 2px gold; }
+    .special-bets { display: flex; gap: 10px; justify-content: center; margin: 16px 0 8px; flex-wrap: wrap; }
+    .spec-btn { background: #2c2a1f; border: 2px solid #b3975a; border-radius: 40px; padding: 8px 16px; font-weight: bold; cursor: pointer; color: #f5eace; }
+    .spec-btn.red-spec { background: #a13030; }
+    .spec-btn.black-spec { background: #2c2c2c; }
+    .players-bar { background: rgba(0,0,0,0.4); border-radius: 28px; padding: 12px; display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; min-height: 70px; }
+    .player-tag { background: #3c3222; border-radius: 60px; padding: 6px 14px; display: flex; align-items: center; gap: 8px; border: 2px solid transparent; cursor: pointer; }
+    .player-tag.selected { border-color: #e6b422; background: #5a4a2c; }
+    .player-tag.has-bet { border-left: 4px solid #4caf50; }
+    .player-name { color: #ffefc0; font-weight: bold; }
+    .player-role { font-size: 0.6rem; background: #00000099; padding: 2px 6px; border-radius: 20px; }
+    .remove-btn { background: #5c2e2e; border: none; border-radius: 50%; width: 24px; height: 24px; color: white; cursor: pointer; margin-left: 5px; }
+    .bet-panel { background: rgba(0,0,0,0.4); border-radius: 28px; padding: 14px; margin: 8px 0; }
+    .bet-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
+    .amount-control { display: flex; align-items: center; gap: 6px; background: #2f2a1c; border-radius: 40px; padding: 4px 12px; }
+    .amount-btn { background: #5a4a2e; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 1.2rem; color: #ffd966; cursor: pointer; }
+    .custom-input { background: #2f2a1c; border: 1px solid #b3975a; border-radius: 40px; padding: 8px 12px; width: 90px; color: white; text-align: center; font-weight: bold; }
+    select, .action-btn { background: #2f2a1c; border: 1px solid #b3975a; border-radius: 40px; padding: 8px 14px; color: white; font-weight: bold; cursor: pointer; }
+    .action-btn { background: #8b5a2b; }
+    .stats-area { background: rgba(0,0,0,0.5); border-radius: 20px; padding: 10px; max-height: 100px; overflow-y: auto; font-size: 0.75rem; color: #e6d5b3; }
+    .support-btn { background: linear-gradient(135deg, #8b4513, #a0522d); border: 2px solid #daa520; border-radius: 60px; padding: 12px; color: #ffd700; font-weight: bold; cursor: pointer; text-align: center; margin-top: 12px; width: 100%; }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin: 8px 0; }
+    #betsDisplay { background: rgba(0,0,0,0.5); border-radius: 20px; padding: 10px; margin: 8px 0; font-size: 0.75rem; color: #e6d5b3; max-height: 80px; overflow-y: auto; }
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 200; }
+    .modal-content { background: #2a2418; border: 2px solid #e6b422; border-radius: 32px; padding: 24px; width: 90%; max-width: 450px; max-height: 85vh; overflow-y: auto; }
+    .modal-title { color: #e6b422; font-size: 1.4rem; margin-bottom: 16px; text-align: center; }
+    .modal-input { width: 100%; padding: 10px; border-radius: 40px; background: #3c3228; border: 1px solid #b3975a; color: white; margin: 8px 0; text-align: center; }
+    .players-config { margin: 16px 0; max-height: 250px; overflow-y: auto; }
+    .player-config-row { display: flex; gap: 8px; margin: 6px 0; align-items: center; }
+    .player-config-row input { flex: 1; background: #3c3228; border: 1px solid #b3975a; border-radius: 40px; padding: 6px 12px; color: white; }
+    .theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+    .theme-option { background: #3c3222; border-radius: 60px; padding: 8px; cursor: pointer; text-align: center; color: #ffefc0; font-size: 0.75rem; }
+    .modal-buttons { display: flex; gap: 12px; margin-top: 20px; }
+    .modal-btn { flex: 1; padding: 10px; border-radius: 40px; border: none; font-weight: bold; cursor: pointer; }
+    .btn-primary { background: #4a5c2e; color: white; }
+    .btn-secondary { background: #5c2e2e; color: white; }
+  </style>
+</head>
+<body data-theme="green">
+<div class="falling-cards" id="fallingCards"></div>
+<button id="settingsBtn" class="settings-fixed">⚙️</button>
+<div class="notification-area" id="notificationArea"></div>
+
+<div class="casino-container">
+  <div class="left-col">
+    <div class="glass-card">
+      <div class="online-panel">
+        <div class="online-status">
+          <span class="room-code" id="roomCodeDisplay">🏠 Офлайн</span>
+          <button id="onlineMenuBtn" class="online-btn">🌐 Создать / Войти</button>
+        </div>
+        <div class="online-users" id="onlineUsersList">👤 Режим: офлайн</div>
+      </div>
+      <div class="logo" style="text-align:center;"><h1 style="font-size:clamp(2rem,7vw,3rem); background:linear-gradient(180deg,#ff4444,#8b0000); -webkit-background-clip:text; background-clip:text; color:transparent;">LUCKY</h1></div>
+      <div class="wheel-row" style="display:flex; gap:20px; flex-wrap:wrap; justify-content:center;">
+        <div class="roulette-box"><canvas id="wheelCanvas" width="350" height="350"></canvas><div class="arrow">▼</div></div>
+        <div class="history-panel"><div class="history-title">ИСТОРИЯ</div><div id="historyList" class="history-list"></div></div>
+      </div>
+      <div style="display:flex; justify-content:center; margin:10px 0;"><button id="spinButton" class="spin-btn" disabled>ВРАЩАТЬ</button></div>
+      <div class="power-bar" id="powerIndicator">💪 Мощность: 0%</div>
+    </div>
+    <div class="glass-card">
+      <div class="bet-board"><div class="bet-header"><span>🎲 ВЫБЕРИТЕ СТАВКУ</span><span>x1.2/x2/x10</span></div><div class="numbers-table" id="numbersGrid"></div><div class="special-bets"><div class="spec-btn red-spec" data-bet="red">🔴 RED</div><div class="spec-btn black-spec" data-bet="black">⚫ BLACK</div><div class="spec-btn" data-bet="odd">ODD</div><div class="spec-btn" data-bet="even">EVEN</div></div></div>
+      <div class="flex-between"><span style="color:#e6b422;">👥 <span id="playerCount">0</span>/<span id="maxPlayers">0</span></span></div>
+      <div class="players-bar" id="playersContainer"></div>
+      <div id="betsDisplay">💎 Ставки не сделаны</div>
+      <div class="bet-panel" id="betPanel"></div>
+      <div class="stats-area" id="statsDisplay">✨ Статистика после спина</div>
+    </div>
+  </div>
+  <div class="bank-col">
+    <div class="glass-card">
+      <div class="bank-section"><div class="bank-title">🏦 БАНК КАЗИНО</div><div class="bank-grid" id="bankGrid"></div><div style="font-size:0.7rem; text-align:center; margin-top:8px;">Проигрыш → + в банк | Выигрыш → − из банка</div></div>
+      <div class="chat-section"><div class="chat-messages" id="chatMessages"><div class="chat-message system">💬 Чат готов. Отправляйте сообщения!</div></div><div class="chat-input-area"><input type="text" id="chatInput" class="chat-input" placeholder="Сообщение..."><button id="chatSendBtn" class="chat-send">➤</button></div></div>
+      <button id="supportRudiBtn" class="support-btn">❤️ Поддержать Руди картами</button>
+    </div>
+  </div>
+</div>
+
+<div id="createModal" class="modal-overlay" style="display:none;"><div class="modal-content"><div class="modal-title">👑 СОЗДАНИЕ СТОЛА (АДМИН)</div>
+  <label>Количество игроков (2-10):</label><input type="number" id="createPlayersCount" class="modal-input" min="2" max="10" value="4">
+  <label>Банк E, D, C, B:</label><div style="display:flex; gap:8px;"><input type="number" id="createBankE" class="modal-input" placeholder="E" value="5000"><input type="number" id="createBankD" class="modal-input" placeholder="D" value="5000"><input type="number" id="createBankC" class="modal-input" placeholder="C" value="5000"><input type="number" id="createBankB" class="modal-input" placeholder="B" value="5000"></div>
+  <label>Имена игроков:</label><div id="playersNamesContainer" class="players-config"></div>
+  <div class="modal-buttons"><button id="confirmCreateBtn" class="modal-btn btn-primary">✨ СОЗДАТЬ СТОЛ</button><button id="cancelCreateBtn" class="modal-btn btn-secondary">Отмена</button></div>
+</div></div>
+
+<div id="joinModal" class="modal-overlay" style="display:none;"><div class="modal-content"><div class="modal-title">🔗 ВХОД В КОМНАТУ</div>
+  <input type="text" id="joinRoomCode" class="modal-input" placeholder="Код комнаты" maxlength="10">
+  <input type="text" id="joinPlayerName" class="modal-input" placeholder="Ваше имя" value="Игрок">
+  <div class="modal-buttons"><button id="confirmJoinBtn" class="modal-btn btn-primary">Войти</button><button id="cancelJoinBtn" class="modal-btn btn-secondary">Отмена</button></div>
+</div></div>
+
+<div id="settingsModal" class="modal-overlay" style="display:none;"><div class="modal-content"><div class="modal-title">⚙️ НАСТРОЙКИ ТЕМ</div>
+  <div class="theme-grid" id="themeGrid"></div>
+  <div class="modal-buttons"><button id="closeSettingsBtn" class="modal-btn btn-primary">Закрыть</button></div>
+</div></div>
+
+<script>
+(function() {
+  // Падающие карты
+  const fallingContainer = document.getElementById('fallingCards');
+  const cardImages = [
+    'https://mangabuff.ru/img/cards/card_624cb1a8-88a2-4fd8-a19f-23d46fcc49e3.png',
+    'https://mangabuff.ru/img/cards/card_17efb196-c001-4727-a010-ef3ece17b630.png',
+    'https://mangabuff.ru/img/cards/card_620531fe-af12-4fd3-a82e-3bf81b91cf30.png'
+  ];
+  for(let i=0;i<40;i++){ const card=document.createElement('img'); card.className='falling-card'; card.src=cardImages[Math.floor(Math.random()*cardImages.length)]; card.style.left=Math.random()*100+'%'; card.style.width=(30+Math.random()*55)+'px'; card.style.animationDuration=(5+Math.random()*10)+'s'; card.style.animationDelay=(Math.random()*8)+'s'; fallingContainer.appendChild(card); }
+  
+  // ТЕМЫ
+  const themes = ['green','red','dark','pink','gold','ocean','sunset','forest','grape','coffee','ice','crimson','lime','space','haki'];
+  const themeNames = ['🌿 Зелёная','🔥 Красная','🌙 Синяя','🌸 Розовая','👑 Золотая','🌊 Океан','🌅 Закат','🌲 Лес','🍇 Виноград','☕ Кофе','❄️ Лёд','❤️ Багровый','🍋 Лайм','🚀 Космос','🥋 Хаки'];
+  function buildThemeGrid(){ const grid=document.getElementById('themeGrid'); grid.innerHTML=themes.map((t,i)=>`<div class="theme-option" data-theme="${t}">${themeNames[i]}</div>`).join(''); document.querySelectorAll('.theme-option').forEach(opt=>{ opt.addEventListener('click',()=>{ document.body.setAttribute('data-theme',opt.dataset.theme); localStorage.setItem('luckyTheme',opt.dataset.theme); }); }); }
+  const savedTheme=localStorage.getItem('luckyTheme'); if(savedTheme) document.body.setAttribute('data-theme',savedTheme);
+  
+  // ОСНОВНАЯ ЛОГИКА РУЛЕТКИ
+  const COLOR_MAP = {0:'green',100:'green',1:'black',2:'red',3:'black',4:'red',5:'black',6:'red',7:'black',8:'black',9:'red',10:'black',11:'red',12:'black',13:'red',14:'red',15:'black',16:'black',17:'red',18:'red',19:'red',20:'black',21:'red',22:'black',23:'red',24:'black',25:'black',26:'red',27:'black',28:'red',29:'black',30:'red'};
+  const WHEEL_SEQUENCE = [0,17,25,2,21,4,19,15,3,6,27,13,12,11,30,8,100,10,5,24,16,26,1,20,14,23,9,22,18,29,7,28];
+  const SEGMENTS = 32;
+  let casinoBank = { E: 5000, D: 5000, C: 5000, B: 5000 };
+  let players = [];
+  let maxPlayers = 4;
+  let history = [];
+  let currentAngle = 0;
+  let spinning = false;
+  let spinAnimation = null;
+  let currentPower = 0;
+  let pendingBet = { type: null, target: null };
+  let currentBetAmount = 1;
+  let selectedPlayerId = null;
+  
+  // Онлайн-переменные
+  let isAdmin = false;
+  let isOnline = false;
+  let currentRoomId = null;
+  let myPlayerId = null;
+  let syncChannel = null;
+  
+  const canvas = document.getElementById('wheelCanvas');
+  const ctx = canvas.getContext('2d');
+  
+  function showNotification(text, type='info'){ const area=document.getElementById('notificationArea'); const n=document.createElement('div'); n.className='notification'; n.style.borderLeftColor=type==='admin'?'#b22222':(type==='system'?'#e6b422':'#4caf50'); n.innerHTML=text; area.appendChild(n); setTimeout(()=>n.remove(),4000); }
+  function addChatMessage(sender, message, isSystem=false, isAdminMsg=false){ const container=document.getElementById('chatMessages'); const msgDiv=document.createElement('div'); msgDiv.className=`chat-message ${isSystem?'system':''} ${isAdminMsg?'admin':''}`; msgDiv.innerHTML=isSystem?`📢 ${message}`:`<strong>${sender}:</strong> ${message}`; container.appendChild(msgDiv); container.scrollTop=container.scrollHeight; }
+  function sendChatMessage(){ const input=document.getElementById('chatInput'); const text=input.value.trim(); if(!text) return; if(isAdmin){ addChatMessage('Админ', text, false, true); if(syncChannel) syncChannel.postMessage({type:'CHAT', sender:'Админ', message:text, isAdmin:true}); } else if(myPlayerId){ const player=players.find(p=>p.id===myPlayerId); addChatMessage(player?.name||'Игрок', text); if(syncChannel) syncChannel.postMessage({type:'CHAT', sender:player?.name||'Игрок', message:text}); } else { addChatMessage('Вы', text); } input.value=''; }
+  
+  function drawWheel(angle){ const w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,r=w/2*0.82,sa=(2*Math.PI)/SEGMENTS; ctx.clearRect(0,0,w,h); for(let i=0;i<SEGMENTS;i++){ const start=angle+i*sa,end=start+sa,num=WHEEL_SEQUENCE[i]; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,start,end); ctx.fillStyle=COLOR_MAP[num]==='green'?'#0a6b2a':(COLOR_MAP[num]==='red'?'#c92a2a':'#1f1f1f'); ctx.fill(); ctx.strokeStyle='#f5e7c8'; ctx.stroke(); ctx.save(); ctx.translate(cx,cy); ctx.rotate(start+sa/2); ctx.fillStyle='#fff0d0'; ctx.font=`bold ${Math.max(11,r*0.07)}px "Segoe UI"`; ctx.fillText(num===100?'00':num, r*0.7, 6); ctx.restore(); } ctx.beginPath(); ctx.arc(cx,cy,r*0.08,0,2*Math.PI); ctx.fillStyle='#3b2b1a'; ctx.fill(); }
+  function getNumberUnderArrow(angle){ const sa=(2*Math.PI)/SEGMENTS; let raw=angle%(2*Math.PI); if(raw<0) raw+=2*Math.PI; const arrowAngle=(3*Math.PI)/2; let diff=(arrowAngle-raw+2*Math.PI)%(2*Math.PI); let idx=Math.floor(diff/sa)%SEGMENTS; return WHEEL_SEQUENCE[idx]; }
+  function updateHistoryDisplay(){ const hDiv=document.getElementById('historyList'); if(!history.length){ hDiv.innerHTML='<div style="color:#aa8b5e;">—</div>'; return; } hDiv.innerHTML=history.slice().reverse().map(h=>`<div class="history-item" style="border-left-color:${h.color==='red'?'#f77':h.color==='green'?'#4cae4c':'#aaa'}"><span>${h.display}</span><span>${h.color==='red'?'🔴':h.color==='green'?'🟢':'⚫'}</span></div>`).join(''); }
+  function addHistory(num){ const col=COLOR_MAP[num]||'green',display=num===100?'00':num; history.push({number:num,color:col,display}); if(history.length>20) history.shift(); updateHistoryDisplay(); if(syncChannel) syncChannel.postMessage({type:'SPIN', winNumber:num}); }
+  
+  function renderBank(){ const ranks=['E','D','C','B']; document.getElementById('bankGrid').innerHTML=ranks.map(r=>`<div class="bank-item"><div class="bank-letter">${r}</div><div class="bank-amount" id="bank-${r}">${casinoBank[r]}</div>${isAdmin ? `<input type="number" id="bank-input-${r}" class="bank-input" placeholder="сумма"><button class="bank-set-btn" data-rank="${r}">Уст.</button>` : ''}</div>`).join(''); if(isAdmin){ ranks.forEach(r=>{ const btn=document.querySelector(`.bank-set-btn[data-rank="${r}"]`); if(btn) btn.onclick=()=>{ const val=parseInt(document.getElementById(`bank-input-${r}`).value); if(!isNaN(val)&&val>=0){ casinoBank[r]=val; document.getElementById(`bank-${r}`).innerText=casinoBank[r]; if(syncChannel) syncChannel.postMessage({type:'BANK_UPDATE', bank:casinoBank}); showNotification(`Банк ${r} установлен: ${val}`,'admin'); } }; }); } }
+  
+  function renderPlayers(){ const container=document.getElementById('playersContainer'); const countSpan=document.getElementById('playerCount'); const maxSpan=document.getElementById('maxPlayers'); countSpan.textContent=players.length; maxSpan.textContent=maxPlayers; if(!players.length){ container.innerHTML='<div style="color:#aa8b5e;">Ожидание игроков...</div>'; selectedPlayerId=null; renderBetPanel(); updateBetsDisplay(); updateSpinState(); return; } container.innerHTML=players.map(p=>`<div class="player-tag ${p.id===selectedPlayerId?'selected':''} ${p.bets?.length?'has-bet':''}" data-id="${p.id}"><span class="player-name">${p.name}</span><span class="player-role">🎮 Игрок</span><span style="font-size:0.7rem;">${p.cards.E}/${p.cards.D}/${p.cards.C}/${p.cards.B}</span>${isAdmin ? `<button class="remove-btn" data-remove="${p.id}">✕</button>` : ''}</div>`).join(''); document.querySelectorAll('.player-tag').forEach(tag=>{ tag.addEventListener('click',(e)=>{ if(e.target.classList.contains('remove-btn')) return; selectedPlayerId=parseInt(tag.dataset.id); renderPlayers(); }); }); if(isAdmin){ document.querySelectorAll('.remove-btn').forEach(btn=>{ btn.addEventListener('click',(e)=>{ e.stopPropagation(); const id=parseInt(btn.dataset.remove); players=players.filter(p=>p.id!==id); if(selectedPlayerId===id) selectedPlayerId=players[0]?.id||null; renderPlayers(); updateSpinState(); if(syncChannel) syncChannel.postMessage({type:'PLAYERS_UPDATE', players:players}); showNotification(`Игрок удалён`,'admin'); }); }); } if(!selectedPlayerId && players.length) selectedPlayerId=players[0]?.id; renderBetPanel(); updateBetsDisplay(); updateSpinState(); }
+  
+  function getSelectedPlayer(){ return players.find(p=>p.id===selectedPlayerId); }
+  function updateBetsDisplay(){ const all=players.flatMap(p=>p.bets?.map(b=>({name:p.name,...b}))||[]); document.getElementById('betsDisplay').innerHTML=!all.length?'💎 Ставки не сделаны':all.map(b=>{let d=b.betType==='red'?'🔴 Красный':b.betType==='black'?'⚫ Чёрный':b.betType==='odd'?'Нечёт':b.betType==='even'?'Чёт':`Число ${b.targetNumber===100?'00':b.targetNumber}`; return `<div>${b.name}: ${b.amount}${b.cardType} → ${d}</div>`;}).join(''); }
+  function clearSelection(){ document.querySelectorAll('.num-card, .spec-btn').forEach(el=>el.classList.remove('selected-bet')); }
+  
+  function renderBetPanel(){ const p=getSelectedPlayer(); if(!p){ document.getElementById('betPanel').innerHTML='<div style="padding:12px;">👑 Выберите игрока</div>'; return; } const canBet = (!isAdmin && p.id === myPlayerId); document.getElementById('betPanel').innerHTML=`<strong style="color:#ffefc0;">🎲 ${p.name}</strong><div class="bet-controls"><select id="cardTypeSelect" ${!canBet ? 'disabled' : ''}><option value="E">E (${p.cards.E})</option><option value="D">D (${p.cards.D})</option><option value="C">C (${p.cards.C})</option><option value="B">B (${p.cards.B})</option></select><div class="amount-control"><button id="decAmt" class="amount-btn" ${!canBet ? 'disabled' : ''}>−</button><input id="customAmount" class="custom-input" type="number" min="1" value="${currentBetAmount}" ${!canBet ? 'disabled' : ''}><button id="incAmt" class="amount-btn" ${!canBet ? 'disabled' : ''}>+</button></div><button id="confirmBet" class="action-btn" ${!canBet ? 'disabled' : ''}>✅ Ставка</button></div><div style="font-size:0.75rem; margin-top:8px;">🎯 Выбрано: <span id="selectedSpan" style="color:gold;">—</span></div>`; if(!canBet) return; const cs=document.getElementById('cardTypeSelect'); const amt=document.getElementById('customAmount'); const upd=()=>{let mv=p.cards[cs.value]; let v=parseInt(amt.value); if(isNaN(v)) v=1; if(v>mv) amt.value=mv; if(v<1) amt.value=1; currentBetAmount=parseInt(amt.value);}; document.getElementById('incAmt').onclick=()=>{let nv=parseInt(amt.value)+1, mv=p.cards[cs.value]; if(nv>mv) nv=mv; amt.value=nv; currentBetAmount=nv;}; document.getElementById('decAmt').onclick=()=>{let nv=parseInt(amt.value)-1; if(nv<1) nv=1; amt.value=nv; currentBetAmount=nv;}; amt.onchange=upd; cs.onchange=upd; document.getElementById('confirmBet').onclick=()=>{ if(!pendingBet.type){ alert('Сначала выберите поле для ставки'); return; } const ct=cs.value; const amount=parseInt(amt.value); if(p.cards[ct]<amount){ alert(`Не хватает ${ct}`); return; } let req=pendingBet.type==='number'?amount*10:Math.floor(amount*1.2); if(casinoBank[ct]<req){ alert(`Банк казино (${ct}) не может покрыть выплату! Нужно ${req}`); return; } p.cards[ct]-=amount; p.bets.push({betType:pendingBet.type,cardType:ct,amount,targetNumber:pendingBet.target}); pendingBet={type:null,target:null}; clearSelection(); document.getElementById('selectedSpan').innerText='—'; renderPlayers(); updateSpinState(); if(syncChannel) syncChannel.postMessage({type:'BET_UPDATE', playerId:p.id, bets:p.bets, cards:p.cards}); showNotification(`Ставка ${amount}${ct} сделана!`,'info'); }; const span=document.getElementById('selectedSpan'); if(span) span.innerText=pendingBet.type?(pendingBet.type==='number'?`Число ${pendingBet.target===100?'00':pendingBet.target}`:pendingBet.type.toUpperCase()):'—'; }
+  
+  function highlight(el){ clearSelection(); if(el){ el.classList.add('selected-bet'); if(el.dataset.num) pendingBet={type:'number',target:parseInt(el.dataset.num)}; else pendingBet={type:el.dataset.bet,target:null}; } renderBetPanel(); }
+  function buildGrid(){ const c=document.getElementById('numbersGrid'); const nums=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,100]; c.innerHTML=nums.map(n=>{let cls=(n===0||n===100)?'green':(COLOR_MAP[n]==='red'?'red':'black'); return `<div class="num-card ${cls}" data-num="${n}">${n===100?'00':n}</div>`;}).join(''); document.querySelectorAll('.num-card, .spec-btn').forEach(el=>el.addEventListener('click',()=>highlight(el))); }
+  function allHaveBets(){ return players.length === maxPlayers && players.every(p=>p.bets?.length > 0); }
+  function updateSpinState(){ const btn=document.getElementById('spinButton'); btn.disabled = spinning || !isAdmin || players.length !== maxPlayers || !allHaveBets(); }
+  
+  function resolveWithBank(winNumber){ let stats=[]; for(let p of players){ if(!p.bets) continue; for(let bet of p.bets){ let win=0,won=false; if(bet.betType==='number' && bet.targetNumber===winNumber){ win=bet.amount*10; won=true; }else{ const col=COLOR_MAP[winNumber],val=winNumber,isEven=(val!==0&&val!==100&&val%2===0),isOdd=(val!==0&&val!==100&&val%2===1); if(bet.betType==='red' && col==='red'){ win=Math.floor(bet.amount*1.2); won=true; }else if(bet.betType==='black' && col==='black'){ win=Math.floor(bet.amount*1.2); won=true; }else if(bet.betType==='even' && isEven){ win=Math.floor(bet.amount*1.2); won=true; }else if(bet.betType==='odd' && isOdd){ win=Math.floor(bet.amount*1.2); won=true; } } if(won){ if(casinoBank[bet.cardType]>=win){ casinoBank[bet.cardType]-=win; p.cards[bet.cardType]+=win; stats.push({player:p.name,bet:bet.amount,card:bet.cardType,won:true,amount:win}); }else{ p.cards[bet.cardType]+=bet.amount; stats.push({player:p.name,bet:bet.amount,card:bet.cardType,won:false}); } }else{ casinoBank[bet.cardType]+=bet.amount; stats.push({player:p.name,bet:bet.amount,card:bet.cardType,won:false}); } } p.bets=[]; } renderBank(); document.getElementById('statsDisplay').innerHTML=stats.map(s=>`${s.player}: ${s.won?`✅ +${s.amount} ${s.card}`:`❌ -${s.bet} ${s.card}`}`).join('')||'✨ Ставок нет'; renderPlayers(); if(syncChannel) syncChannel.postMessage({type:'STATE_UPDATE', players:players, bank:casinoBank, history:history}); stats.forEach(s=>{ if(s.won) showNotification(`${s.player} выиграл +${s.amount} ${s.card}!`,'info'); else showNotification(`${s.player} проиграл -${s.bet} ${s.card}`,'info'); }); }
+  function calcPower(e,t){ if(e>=t) return 0; const m=t/2; return e<=m?(e/m)*100:((t-e)/(t-m))*100; }
+  function spin(){ if(spinning || !isAdmin || players.length !== maxPlayers || !allHaveBets()) return; spinning=true; document.getElementById('spinButton').disabled=true; showNotification('Вращение началось!','admin'); const start=performance.now(); const TOTAL=8500; let last=start; function animate(now){ const elapsed=now-start,delta=Math.min((now-last)/1000,0.1); last=now; if(elapsed>=TOTAL){ currentPower=0; document.getElementById('powerIndicator').innerHTML='💪 Мощность: 0%'; drawWheel(currentAngle); let win=getNumberUnderArrow(currentAngle); spinning=false; addHistory(win); resolveWithBank(win); updateSpinState(); showNotification(`Выпало число ${win===100?'00':win}!`,'system'); return; } currentPower=calcPower(elapsed,TOTAL); document.getElementById('powerIndicator').innerHTML=`💪 Мощность: ${Math.round(currentPower)}%`; currentAngle+=(currentPower/100)*24*delta; drawWheel(currentAngle); requestAnimationFrame(animate); } if(spinAnimation) cancelAnimationFrame(spinAnimation); spinAnimation=requestAnimationFrame(animate); }
+  
+  // ИСПРАВЛЕННАЯ ФУНКЦИЯ КОПИРОВАНИЯ ССЫЛКИ
+  function copyInviteLink(roomCode) {
+    const baseUrl = window.location.href.split('?')[0].split('#')[0];
+    const inviteUrl = `${baseUrl}?room=${roomCode}`;
+    if(navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(inviteUrl).then(() => {
+        showNotification(`✅ Ссылка скопирована: ${inviteUrl}`, 'system');
+      }).catch(() => {
+        fallbackCopy(inviteUrl);
+      });
+    } else {
+      fallbackCopy(inviteUrl);
+    }
+  }
+  function fallbackCopy(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    try { document.execCommand('copy'); showNotification(`✅ Ссылка скопирована: ${text}`, 'system'); } catch(e) { showNotification('❌ Не удалось скопировать', 'system'); }
+    document.body.removeChild(textarea);
+  }
+  
+  // ОНЛАЙН-ЛОГИКА
+  function initOnlineAsAdmin(roomId, playerNames, bankValues, playersCount){
+    isAdmin=true; isOnline=true; currentRoomId=roomId; maxPlayers=playersCount; casinoBank={E:bankValues[0],D:bankValues[1],C:bankValues[2],B:bankValues[3]}; players=[]; myPlayerId=null;
+    for(let i=0;i<playersCount;i++){ players.push({id:i+1, name:playerNames[i] || `Игрок ${i+1}`, cards:{E:50,D:50,C:50,B:50}, bets:[]}); }
+    if(syncChannel) syncChannel.close();
+    syncChannel=new BroadcastChannel(`lucky_room_${roomId}`);
+    syncChannel.onmessage=(e)=>{ const data=e.data;
+      if(data.type==='JOIN_REQUEST'){ if(players.length<maxPlayers && !players.find(p=>p.name===data.playerName)){ const newId=players.length+1; players.push({id:newId, name:data.playerName, cards:{E:50,D:50,C:50,B:50}, bets:[]}); syncChannel.postMessage({type:'ROOM_STATE', players:players, bank:casinoBank, history:history, maxPlayers:maxPlayers}); renderPlayers(); updateSpinState(); showNotification(`${data.playerName} присоединился!`,'system'); addChatMessage('Система', `${data.playerName} присоединился к игре`, true); } }
+      if(data.type==='CHAT'){ addChatMessage(data.sender, data.message, false, data.isAdmin); if(data.sender!=='Админ') syncChannel.postMessage({type:'CHAT', sender:data.sender, message:data.message}); }
+      if(data.type==='BET_UPDATE'){ const target=players.find(p=>p.id===data.playerId); if(target){ target.bets=data.bets; target.cards=data.cards; renderPlayers(); updateBetsDisplay(); updateSpinState(); showNotification(`${target.name} сделал ставку!`,'info'); } }
+      if(data.type==='GET_STATE'){ syncChannel.postMessage({type:'ROOM_STATE', players:players, bank:casinoBank, history:history, maxPlayers:maxPlayers}); }
+      if(data.type==='SPIN'){ addHistory(data.winNumber); resolveWithBank(data.winNumber); }
+      if(data.type==='STATE_UPDATE'){ players=data.players; casinoBank=data.bank; history=data.history||history; updateHistoryDisplay(); renderBank(); renderPlayers(); updateBetsDisplay(); updateSpinState(); }
+      if(data.type==='PLAYERS_UPDATE'){ players=data.players; renderPlayers(); updateSpinState(); }
+      if(data.type==='BANK_UPDATE'){ casinoBank=data.bank; renderBank(); }
+    };
+    renderBank(); buildGrid(); drawWheel(currentAngle); renderPlayers(); updateSpinState(); updateOnlineUI(); showNotification(`Комната ${roomId} создана! Вы админ.`,'admin'); addChatMessage('Система', `Комната создана. Код: ${roomId}. Ожидаем игроков...`, true);
+  }
+  
+  function joinRoom(roomId, playerName){
+    isAdmin=false; isOnline=true; currentRoomId=roomId; myPlayerId=null;
+    if(syncChannel) syncChannel.close();
+    syncChannel=new BroadcastChannel(`lucky_room_${roomId}`);
+    syncChannel.onmessage=(e)=>{ const data=e.data;
+      if(data.type==='ROOM_STATE'){ maxPlayers=data.maxPlayers; casinoBank=data.bank; history=data.history||[]; updateHistoryDisplay(); players=data.players; myPlayerId=players.find(p=>p.name===playerName)?.id; if(!myPlayerId && players.length<maxPlayers){ syncChannel.postMessage({type:'JOIN_REQUEST', playerName:playerName}); } else if(myPlayerId){ selectedPlayerId=myPlayerId; renderBank(); renderPlayers(); updateSpinState(); updateOnlineUI(); showNotification(`Вы вошли как ${playerName}`,'info'); addChatMessage('Система', `${playerName} присоединился к игре`, true); } }
+      if(data.type==='CHAT'){ addChatMessage(data.sender, data.message, false, data.isAdmin); }
+      if(data.type==='PLAYERS_UPDATE'){ players=data.players; renderPlayers(); updateSpinState(); }
+      if(data.type==='BANK_UPDATE'){ casinoBank=data.bank; renderBank(); }
+      if(data.type==='STATE_UPDATE'){ players=data.players; casinoBank=data.bank; history=data.history||history; updateHistoryDisplay(); renderBank(); renderPlayers(); updateBetsDisplay(); updateSpinState(); }
+      if(data.type==='SPIN'){ addHistory(data.winNumber); resolveWithBank(data.winNumber); }
+    };
+    syncChannel.postMessage({type:'GET_STATE'});
+    renderBank(); buildGrid(); drawWheel(currentAngle); renderPlayers(); updateSpinState(); updateOnlineUI();
+  }
+  
+  function exitOnline(){ if(syncChannel) syncChannel.close(); isAdmin=false; isOnline=false; currentRoomId=null; players=[]; maxPlayers=4; casinoBank={E:5000,D:5000,C:5000,B:5000}; history=[]; currentAngle=0; myPlayerId=null; players.push({id:1, name:'Тестовый игрок', cards:{E:50,D:50,C:50,B:50}, bets:[]}); maxPlayers=1; selectedPlayerId=1; myPlayerId=1; renderBank(); drawWheel(currentAngle); renderPlayers(); updateBetsDisplay(); updateHistoryDisplay(); updateSpinState(); updateOnlineUI(); showNotification('Вы вышли из онлайн-режима','system'); addChatMessage('Система', 'Вы перешли в офлайн-режим', true); }
+  
+  function updateOnlineUI(){ const roomSpan=document.getElementById('roomCodeDisplay'); const usersSpan=document.getElementById('onlineUsersList'); if(isOnline && currentRoomId){ roomSpan.innerHTML=`🏠 Комната: ${currentRoomId} 📋`; roomSpan.style.cursor='pointer'; roomSpan.onclick=()=>copyInviteLink(currentRoomId); usersSpan.innerHTML=`👥 ${players.length}/${maxPlayers} игроков | ${isAdmin?'Вы админ (не играете), вращайте колесо':'Вы игрок, делайте ставки'}`; } else { roomSpan.innerHTML='🏠 Офлайн'; roomSpan.style.cursor='default'; roomSpan.onclick=null; usersSpan.innerHTML='👤 Офлайн-режим (только локальная игра)'; } }
+  
+  // Обработка приглашения из URL
+  function checkInviteFromURL(){ const urlParams=new URLSearchParams(window.location.search); const roomCode=urlParams.get('room'); if(roomCode){ const playerName=prompt('Введите ваше имя:', 'Игрок'); if(playerName && roomCode) joinRoom(roomCode.toUpperCase(), playerName); window.history.replaceState({}, document.title, window.location.pathname); } }
+  
+  // Модалки
+  const createModal=document.getElementById('createModal'); const joinModal=document.getElementById('joinModal'); const settingsModal=document.getElementById('settingsModal');
+  document.getElementById('onlineMenuBtn').onclick=()=>{ if(isOnline) exitOnline(); else createModal.style.display='flex'; };
+  document.getElementById('createPlayersCount').onchange=function(){ const cnt=parseInt(this.value); const container=document.getElementById('playersNamesContainer'); container.innerHTML=''; for(let i=1;i<=cnt;i++){ container.innerHTML+=`<div class="player-config-row"><span style="color:#e6b422;">Игрок ${i}:</span><input type="text" id="playerName${i}" placeholder="Имя" value="Игрок ${i}"></div>`; } };
+  document.getElementById('createPlayersCount').dispatchEvent(new Event('change'));
+  document.getElementById('confirmCreateBtn').onclick=()=>{ const cnt=parseInt(document.getElementById('createPlayersCount').value); const names=[]; for(let i=1;i<=cnt;i++){ const val=document.getElementById(`playerName${i}`)?.value.trim(); names.push(val || `Игрок ${i}`); } const bankE=parseInt(document.getElementById('createBankE').value)||5000; const bankD=parseInt(document.getElementById('createBankD').value)||5000; const bankC=parseInt(document.getElementById('createBankC').value)||5000; const bankB=parseInt(document.getElementById('createBankB').value)||5000; const roomCode=Math.random().toString(36).substring(2,8).toUpperCase(); initOnlineAsAdmin(roomCode, names, [bankE,bankD,bankC,bankB], cnt); createModal.style.display='none'; };
+  document.getElementById('cancelCreateBtn').onclick=()=>createModal.style.display='none';
+  document.getElementById('confirmJoinBtn').onclick=()=>{ const code=document.getElementById('joinRoomCode').value.trim().toUpperCase(); const name=document.getElementById('joinPlayerName').value.trim()||'Игрок'; if(code){ joinRoom(code, name); joinModal.style.display='none'; } else alert('Введите код комнаты'); };
+  document.getElementById('cancelJoinBtn').onclick=()=>joinModal.style.display='none';
+  document.getElementById('settingsBtn').onclick=()=>{ buildThemeGrid(); settingsModal.style.display='flex'; };
+  document.getElementById('closeSettingsBtn').onclick=()=>settingsModal.style.display='none';
+  document.getElementById('supportRudiBtn').onclick=()=>window.open('https://mangabuff.ru/users/1179218','_blank');
+  document.getElementById('chatSendBtn').onclick=sendChatMessage;
+  document.getElementById('chatInput').addEventListener('keypress',(e)=>{ if(e.key==='Enter') sendChatMessage(); });
+  
+  // Инициализация офлайн-режима
+  players.push({id:1, name:'Тестовый игрок', cards:{E:50,D:50,C:50,B:50}, bets:[]});
+  maxPlayers=1; selectedPlayerId=1; myPlayerId=1;
+  renderBank(); buildGrid(); drawWheel(currentAngle); renderPlayers(); updateSpinState(); updateOnlineUI();
+  checkInviteFromURL();
+})();
+</script>
+</body>
+</html>
