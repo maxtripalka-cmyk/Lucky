@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-  <title>LUCKY Roulette · Онлайн-синхронизация</title>
+  <title>LUCKY Roulette · Синхронизация комнат</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; padding: 12px; transition: background 0.3s ease; background: linear-gradient(160deg, #0a1f0a 0%, #1a2e1a 100%); }
@@ -212,112 +212,102 @@
   let currentBetAmount = 1;
   let selectedPlayerId = null;
   
-  // Онлайн-переменные (через localStorage)
+  // Онлайн-переменные
   let isAdmin = false;
   let isOnline = false;
   let currentRoomId = null;
   let myPlayerId = null;
-  let heartbeatInterval = null;
+  let syncTimer = null;
   
   const canvas = document.getElementById('wheelCanvas');
   const ctx = canvas.getContext('2d');
   
   function showNotification(text, type='info'){ const area=document.getElementById('notificationArea'); const n=document.createElement('div'); n.className='notification'; n.style.borderLeftColor=type==='admin'?'#b22222':(type==='system'?'#e6b422':'#4caf50'); n.innerHTML=text; area.appendChild(n); setTimeout(()=>n.remove(),4000); }
   function addChatMessage(sender, message, isSystem=false, isAdminMsg=false){ const container=document.getElementById('chatMessages'); const msgDiv=document.createElement('div'); msgDiv.className=`chat-message ${isSystem?'system':''} ${isAdminMsg?'admin':''}`; msgDiv.innerHTML=isSystem?`📢 ${message}`:`<strong>${sender}:</strong> ${message}`; container.appendChild(msgDiv); container.scrollTop=container.scrollHeight; }
-  function sendChatMessage(){ const input=document.getElementById('chatInput'); const text=input.value.trim(); if(!text) return; if(isOnline && currentRoomId){ const messageData = { type: 'CHAT', sender: isAdmin ? 'Админ' : (players.find(p=>p.id===myPlayerId)?.name || 'Игрок'), message: text, isAdmin: isAdmin, timestamp: Date.now() }; saveToRoomStorage('messages', messageData); addChatMessage(messageData.sender, text, false, messageData.isAdmin); } else { addChatMessage('Вы', text); } input.value=''; }
+  function sendChatMessage(){ const input=document.getElementById('chatInput'); const text=input.value.trim(); if(!text || !isOnline) return; const messageData = { sender: isAdmin ? 'Админ' : (players.find(p=>p.id===myPlayerId)?.name || 'Игрок'), message: text, isAdmin: isAdmin, timestamp: Date.now() }; addChatMessage(messageData.sender, text, false, messageData.isAdmin); saveRoomData(); input.value=''; }
   
-  // РАБОТА С ХРАНИЛИЩЕМ КОМНАТЫ
-  function getRoomStorageKey(roomId, type) { return `lucky_room_${roomId}_${type}`; }
+  // ========== ЕДИНОЕ ХРАНИЛИЩЕ КОМНАТЫ ==========
+  function getRoomDataKey() { return `lucky_room_${currentRoomId}`; }
   
-  function saveToRoomStorage(type, data) {
+  function saveRoomData() {
     if(!currentRoomId) return;
-    const key = getRoomStorageKey(currentRoomId, type);
-    let existing = [];
-    try { existing = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) {}
-    if(type === 'state') { localStorage.setItem(key, JSON.stringify(data)); }
-    else { existing.push(data); if(existing.length > 200) existing = existing.slice(-200); localStorage.setItem(key, JSON.stringify(existing)); }
-    localStorage.setItem(`lucky_room_${currentRoomId}_lastUpdate`, Date.now().toString());
+    const roomData = {
+      players: players,
+      casinoBank: casinoBank,
+      maxPlayers: maxPlayers,
+      history: history,
+      currentAngle: currentAngle,
+      adminId: isAdmin ? myPlayerId : null,
+      lastUpdate: Date.now(),
+      messages: loadMessages()
+    };
+    localStorage.setItem(getRoomDataKey(), JSON.stringify(roomData));
   }
   
-  function loadFromRoomStorage(type) {
-    if(!currentRoomId) return type === 'state' ? null : [];
-    const key = getRoomStorageKey(currentRoomId, type);
-    try { return JSON.parse(localStorage.getItem(key) || (type === 'state' ? 'null' : '[]')); } catch(e) { return type === 'state' ? null : []; }
-  }
-  
-  function loadRoomState() {
-    const state = loadFromRoomStorage('state');
-    if(state) {
-      if(state.players) players = state.players;
-      if(state.casinoBank) casinoBank = state.casinoBank;
-      if(state.maxPlayers) maxPlayers = state.maxPlayers;
-      if(state.history) { history = state.history; updateHistoryDisplay(); }
-      if(state.currentAngle !== undefined) { currentAngle = state.currentAngle; drawWheel(currentAngle); }
-      if(state.isAdmin !== undefined && myPlayerId === state.adminId) isAdmin = state.isAdmin;
-      renderBank(); renderPlayers(); updateSpinState();
+  function loadMessages() {
+    if(!currentRoomId) return [];
+    const data = localStorage.getItem(getRoomDataKey());
+    if(data) {
+      try {
+        const parsed = JSON.parse(data);
+        return parsed.messages || [];
+      } catch(e) {}
     }
-    const messages = loadFromRoomStorage('messages');
-    const chatContainer = document.getElementById('chatMessages');
-    if(chatContainer && messages.length) {
-      const existingMsgs = Array.from(chatContainer.querySelectorAll('.chat-message:not(.system)'));
-      if(existingMsgs.length < messages.length) {
-        chatContainer.innerHTML = '<div class="chat-message system">💬 История чата</div>';
-        messages.forEach(msg => { addChatMessage(msg.sender, msg.message, false, msg.isAdmin); });
+    return [];
+  }
+  
+  function loadRoomData() {
+    if(!currentRoomId) return false;
+    const data = localStorage.getItem(getRoomDataKey());
+    if(!data) return false;
+    try {
+      const roomData = JSON.parse(data);
+      if(roomData.players) players = roomData.players;
+      if(roomData.casinoBank) casinoBank = roomData.casinoBank;
+      if(roomData.maxPlayers) maxPlayers = roomData.maxPlayers;
+      if(roomData.history) { history = roomData.history; updateHistoryDisplay(); }
+      if(roomData.currentAngle !== undefined) { currentAngle = roomData.currentAngle; drawWheel(currentAngle); }
+      if(roomData.messages && roomData.messages.length) {
+        const chatContainer = document.getElementById('chatMessages');
+        const existingCount = chatContainer.querySelectorAll('.chat-message:not(.system)').length;
+        if(existingCount < roomData.messages.length) {
+          chatContainer.innerHTML = '<div class="chat-message system">💬 История чата</div>';
+          roomData.messages.forEach(msg => { addChatMessage(msg.sender, msg.message, false, msg.isAdmin); });
+        }
       }
-    }
+      return true;
+    } catch(e) { return false; }
+  }
+  
+  function saveMessageToRoom(sender, message, isAdminMsg) {
+    if(!currentRoomId) return;
+    const messages = loadMessages();
+    messages.push({ sender: sender, message: message, isAdmin: isAdminMsg, timestamp: Date.now() });
+    if(messages.length > 100) messages.shift();
+    const roomData = JSON.parse(localStorage.getItem(getRoomDataKey()) || '{}');
+    roomData.messages = messages;
+    localStorage.setItem(getRoomDataKey(), JSON.stringify(roomData));
   }
   
   function broadcastUpdate() {
     if(!currentRoomId) return;
-    const state = { players: players, casinoBank: casinoBank, maxPlayers: maxPlayers, history: history, currentAngle: currentAngle, adminId: isAdmin ? myPlayerId : null, isAdmin: isAdmin, timestamp: Date.now() };
-    saveToRoomStorage('state', state);
-    localStorage.setItem(`lucky_room_${currentRoomId}_players`, JSON.stringify(players.map(p => ({ id: p.id, name: p.name }))));
+    saveRoomData();
+    // Триггерим событие storage для всех окон
+    localStorage.setItem('lucky_room_sync', Date.now().toString());
   }
   
-  function syncWithStorage() {
-    if(!currentRoomId) return;
-    const lastUpdate = parseInt(localStorage.getItem(`lucky_room_${currentRoomId}_lastUpdate`) || '0');
-    if(Date.now() - lastUpdate < 100) return;
-    const state = loadFromRoomStorage('state');
-    if(state && state.timestamp) {
-      let needUpdate = false;
-      if(state.players && JSON.stringify(state.players) !== JSON.stringify(players)) { players = state.players; needUpdate = true; }
-      if(state.casinoBank && JSON.stringify(state.casinoBank) !== JSON.stringify(casinoBank)) { casinoBank = state.casinoBank; needUpdate = true; }
-      if(state.maxPlayers && state.maxPlayers !== maxPlayers) { maxPlayers = state.maxPlayers; needUpdate = true; }
-      if(state.history && JSON.stringify(state.history) !== JSON.stringify(history)) { history = state.history; updateHistoryDisplay(); needUpdate = true; }
-      if(state.currentAngle !== undefined && Math.abs(state.currentAngle - currentAngle) > 0.01) { currentAngle = state.currentAngle; drawWheel(currentAngle); }
-      if(needUpdate) { renderBank(); renderPlayers(); updateSpinState(); }
-    }
-    const messages = loadFromRoomStorage('messages');
-    if(messages.length) {
-      const lastMsgTime = messages[messages.length-1]?.timestamp || 0;
-      const lastShown = parseInt(sessionStorage.getItem(`lastMsg_${currentRoomId}`) || '0');
-      if(lastMsgTime > lastShown) {
-        messages.forEach(msg => { if(msg.timestamp > lastShown) addChatMessage(msg.sender, msg.message, false, msg.isAdmin); });
-        sessionStorage.setItem(`lastMsg_${currentRoomId}`, lastMsgTime.toString());
+  // Слушаем изменения в localStorage
+  window.addEventListener('storage', (e) => {
+    if(e.key === getRoomDataKey() || e.key === 'lucky_room_sync') {
+      if(currentRoomId && isOnline) {
+        loadRoomData();
+        renderBank();
+        renderPlayers();
+        updateBetsDisplay();
+        updateSpinState();
       }
     }
-  }
-  
-  // Heartbeat для отслеживания живых игроков
-  function startHeartbeat() {
-    if(heartbeatInterval) clearInterval(heartbeatInterval);
-    heartbeatInterval = setInterval(() => {
-      if(isOnline && currentRoomId) {
-        localStorage.setItem(`lucky_room_${currentRoomId}_heartbeat_${myPlayerId}`, Date.now().toString());
-        const allPlayers = players.map(p => p.id);
-        for(let pid of allPlayers) {
-          const lastBeat = parseInt(localStorage.getItem(`lucky_room_${currentRoomId}_heartbeat_${pid}`) || '0');
-          if(Date.now() - lastBeat > 10000 && pid !== myPlayerId) {
-            players = players.filter(p => p.id !== pid);
-            broadcastUpdate();
-            renderPlayers();
-            showNotification(`Игрок ${pid} отключился`, 'system');
-          }
-        }
-      }
-    }, 5000);
-  }
+  });
   
   function drawWheel(angle){ const w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,r=w/2*0.82,sa=(2*Math.PI)/SEGMENTS; ctx.clearRect(0,0,w,h); for(let i=0;i<SEGMENTS;i++){ const start=angle+i*sa,end=start+sa,num=WHEEL_SEQUENCE[i]; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,start,end); ctx.fillStyle=COLOR_MAP[num]==='green'?'#0a6b2a':(COLOR_MAP[num]==='red'?'#c92a2a':'#1f1f1f'); ctx.fill(); ctx.strokeStyle='#f5e7c8'; ctx.stroke(); ctx.save(); ctx.translate(cx,cy); ctx.rotate(start+sa/2); ctx.fillStyle='#fff0d0'; ctx.font=`bold ${Math.max(11,r*0.07)}px "Segoe UI"`; ctx.fillText(num===100?'00':num, r*0.7, 6); ctx.restore(); } ctx.beginPath(); ctx.arc(cx,cy,r*0.08,0,2*Math.PI); ctx.fillStyle='#3b2b1a'; ctx.fill(); }
   function getNumberUnderArrow(angle){ const sa=(2*Math.PI)/SEGMENTS; let raw=angle%(2*Math.PI); if(raw<0) raw+=2*Math.PI; const arrowAngle=(3*Math.PI)/2; let diff=(arrowAngle-raw+2*Math.PI)%(2*Math.PI); let idx=Math.floor(diff/sa)%SEGMENTS; return WHEEL_SEQUENCE[idx]; }
@@ -341,53 +331,71 @@
   
   function resolveWithBank(winNumber){ let stats=[]; for(let p of players){ if(!p.bets) continue; for(let bet of p.bets){ let win=0,won=false; if(bet.betType==='number' && bet.targetNumber===winNumber){ win=bet.amount*10; won=true; }else{ const col=COLOR_MAP[winNumber],val=winNumber,isEven=(val!==0&&val!==100&&val%2===0),isOdd=(val!==0&&val!==100&&val%2===1); if(bet.betType==='red' && col==='red'){ win=Math.floor(bet.amount*1.2); won=true; }else if(bet.betType==='black' && col==='black'){ win=Math.floor(bet.amount*1.2); won=true; }else if(bet.betType==='even' && isEven){ win=Math.floor(bet.amount*1.2); won=true; }else if(bet.betType==='odd' && isOdd){ win=Math.floor(bet.amount*1.2); won=true; } } if(won){ if(casinoBank[bet.cardType]>=win){ casinoBank[bet.cardType]-=win; p.cards[bet.cardType]+=win; stats.push({player:p.name,bet:bet.amount,card:bet.cardType,won:true,amount:win}); }else{ p.cards[bet.cardType]+=bet.amount; stats.push({player:p.name,bet:bet.amount,card:bet.cardType,won:false}); } }else{ casinoBank[bet.cardType]+=bet.amount; stats.push({player:p.name,bet:bet.amount,card:bet.cardType,won:false}); } } p.bets=[]; } renderBank(); document.getElementById('statsDisplay').innerHTML=stats.map(s=>`${s.player}: ${s.won?`✅ +${s.amount} ${s.card}`:`❌ -${s.bet} ${s.card}`}`).join('')||'✨ Ставок нет'; renderPlayers(); broadcastUpdate(); stats.forEach(s=>{ if(s.won) showNotification(`${s.player} выиграл +${s.amount} ${s.card}!`,'info'); else showNotification(`${s.player} проиграл -${s.bet} ${s.card}`,'info'); }); }
   function calcPower(e,t){ if(e>=t) return 0; const m=t/2; return e<=m?(e/m)*100:((t-e)/(t-m))*100; }
-  function spin(){ if(spinning || !isAdmin || players.length !== maxPlayers || !allHaveBets()) return; spinning=true; document.getElementById('spinButton').disabled=true; showNotification('Вращение началось!','admin'); const start=performance.now(); const TOTAL=8500; let last=start; function animate(now){ const elapsed=now-start,delta=Math.min((now-last)/1000,0.1); last=now; if(elapsed>=TOTAL){ currentPower=0; document.getElementById('powerIndicator').innerHTML='💪 Мощность: 0%'; drawWheel(currentAngle); let win=getNumberUnderArrow(currentAngle); spinning=false; addHistory(win); resolveWithBank(win); updateSpinState(); showNotification(`Выпало число ${win===100?'00':win}!`,'system'); broadcastUpdate(); return; } currentPower=calcPower(elapsed,TOTAL); document.getElementById('powerIndicator').innerHTML=`💪 Мощность: ${Math.round(currentPower)}%`; currentAngle+=(currentPower/100)*24*delta; drawWheel(currentAngle); requestAnimationFrame(animate); } if(spinAnimation) cancelAnimationFrame(spinAnimation); spinAnimation=requestAnimationFrame(animate); }
+  function spin(){ if(spinning || !isAdmin || players.length !== maxPlayers || !allHaveBets()) return; spinning=true; document.getElementById('spinButton').disabled=true; showNotification('Вращение началось!','admin'); const start=performance.now(); const TOTAL=8500; let last=start; function animate(now){ const elapsed=now-start,delta=Math.min((now-last)/1000,0.1); last=now; if(elapsed>=TOTAL){ currentPower=0; document.getElementById('powerIndicator').innerHTML='💪 Мощность: 0%'; drawWheel(currentAngle); let win=getNumberUnderArrow(currentAngle); spinning=false; addHistory(win); resolveWithBank(win); updateSpinState(); showNotification(`Выпало число ${win===100?'00':win}!`,'system'); return; } currentPower=calcPower(elapsed,TOTAL); document.getElementById('powerIndicator').innerHTML=`💪 Мощность: ${Math.round(currentPower)}%`; currentAngle+=(currentPower/100)*24*delta; drawWheel(currentAngle); requestAnimationFrame(animate); } if(spinAnimation) cancelAnimationFrame(spinAnimation); spinAnimation=requestAnimationFrame(animate); }
   
   function copyRoomCode() { if(currentRoomId){ navigator.clipboard.writeText(currentRoomId); showNotification(`✅ Код комнаты скопирован: ${currentRoomId}`, 'system'); } }
   function copyInviteLink() { if(!currentRoomId) return; const url = `${window.location.href.split('?')[0].split('#')[0]}?room=${currentRoomId}`; navigator.clipboard.writeText(url); showNotification(`✅ Ссылка скопирована: ${url}`, 'system'); }
   
+  // ИНИЦИАЛИЗАЦИЯ КОМНАТЫ
   function initOnlineAsAdmin(roomId, playerNames, bankValues, playersCount){
-    if(heartbeatInterval) clearInterval(heartbeatInterval);
+    if(syncTimer) clearInterval(syncTimer);
     isAdmin=true; isOnline=true; currentRoomId=roomId; maxPlayers=playersCount; casinoBank={E:bankValues[0],D:bankValues[1],C:bankValues[2],B:bankValues[3]}; players=[]; myPlayerId=1;
     for(let i=0;i<playersCount;i++){ players.push({id:i+1, name:playerNames[i] || `Игрок ${i+1}`, cards:{E:50,D:50,C:50,B:50}, bets:[]}); }
-    broadcastUpdate(); startHeartbeat(); renderBank(); buildGrid(); drawWheel(currentAngle); renderPlayers(); updateSpinState(); updateOnlineUI(); showNotification(`Комната ${roomId} создана! Вы админ.`,'admin'); addChatMessage('Система', `Комната создана. Код: ${roomId}. Ожидаем игроков...`, true);
-    const syncInterval = setInterval(() => { if(isOnline && currentRoomId) syncWithStorage(); else clearInterval(syncInterval); }, 800);
-    window.addEventListener('beforeunload', () => { if(currentRoomId) localStorage.removeItem(`lucky_room_${currentRoomId}_heartbeat_${myPlayerId}`); });
+    broadcastUpdate();
+    renderBank(); buildGrid(); drawWheel(currentAngle); renderPlayers(); updateSpinState(); updateOnlineUI();
+    showNotification(`Комната ${roomId} создана! Вы админ.`,'admin');
+    addChatMessage('Система', `Комната создана. Код: ${roomId}. Ожидаем игроков...`, true);
+    syncTimer = setInterval(() => { if(isOnline && currentRoomId) loadRoomData(); }, 1000);
   }
   
   function joinRoom(roomId, playerName){
-    if(heartbeatInterval) clearInterval(heartbeatInterval);
-    isAdmin=false; isOnline=true; currentRoomId=roomId; myPlayerId = Date.now() % 10000 + Math.floor(Math.random() * 10000);
-    const state = loadFromRoomStorage('state');
-    if(state && state.players) {
-      maxPlayers = state.maxPlayers; casinoBank = state.casinoBank; history = state.history || []; updateHistoryDisplay();
-      players = state.players;
-      const existing = players.find(p => p.name === playerName);
-      if(!existing && players.length < maxPlayers) {
-        const newId = players.length + 1;
-        players.push({ id: newId, name: playerName, cards: {E:50,D:50,C:50,B:50}, bets: [] });
-        myPlayerId = newId;
+    if(syncTimer) clearInterval(syncTimer);
+    isAdmin=false; isOnline=true; currentRoomId=roomId;
+    // Загружаем существующие данные комнаты
+    const existingData = localStorage.getItem(`lucky_room_${roomId}`);
+    if(existingData) {
+      const roomData = JSON.parse(existingData);
+      players = roomData.players || [];
+      maxPlayers = roomData.maxPlayers || 4;
+      casinoBank = roomData.casinoBank || {E:5000,D:5000,C:5000,B:5000};
+      history = roomData.history || [];
+      currentAngle = roomData.currentAngle || 0;
+      updateHistoryDisplay();
+      drawWheel(currentAngle);
+      // Проверяем, есть ли уже игрок с таким именем
+      const existingPlayer = players.find(p => p.name === playerName);
+      if(existingPlayer) {
+        myPlayerId = existingPlayer.id;
+      } else if(players.length < maxPlayers) {
+        myPlayerId = players.length + 1;
+        players.push({ id: myPlayerId, name: playerName, cards: {E:50,D:50,C:50,B:50}, bets: [] });
         broadcastUpdate();
-      } else if(existing) { myPlayerId = existing.id; }
-      selectedPlayerId = myPlayerId;
-      renderBank(); renderPlayers(); updateSpinState();
+      } else {
+        alert('Комната полна!');
+        exitOnline();
+        return;
+      }
     } else {
-      players = []; maxPlayers = 4;
-      players.push({ id: 1, name: playerName, cards: {E:50,D:50,C:50,B:50}, bets: [] });
-      myPlayerId = 1; selectedPlayerId = 1;
+      // Новая комната (админ ещё не создал? создаём временную)
+      players = [{ id: 1, name: playerName, cards: {E:50,D:50,C:50,B:50}, bets: [] }];
+      myPlayerId = 1;
+      maxPlayers = 4;
       broadcastUpdate();
     }
-    startHeartbeat(); updateOnlineUI(); showNotification(`Вы вошли в комнату ${roomId} как ${playerName}`,'info'); addChatMessage('Система', `${playerName} присоединился к игре`, true);
-    const syncInterval = setInterval(() => { if(isOnline && currentRoomId) syncWithStorage(); else clearInterval(syncInterval); }, 800);
-    window.addEventListener('beforeunload', () => { if(currentRoomId) localStorage.removeItem(`lucky_room_${currentRoomId}_heartbeat_${myPlayerId}`); });
+    selectedPlayerId = myPlayerId;
+    renderBank(); renderPlayers(); updateSpinState(); updateOnlineUI();
+    showNotification(`Вы вошли в комнату ${roomId} как ${playerName}`,'info');
+    addChatMessage('Система', `${playerName} присоединился к игре`, true);
+    syncTimer = setInterval(() => { if(isOnline && currentRoomId) loadRoomData(); }, 1000);
   }
   
   function exitOnline(){
-    if(heartbeatInterval) clearInterval(heartbeatInterval);
-    if(currentRoomId && myPlayerId) localStorage.removeItem(`lucky_room_${currentRoomId}_heartbeat_${myPlayerId}`);
+    if(syncTimer) clearInterval(syncTimer);
     isAdmin=false; isOnline=false; currentRoomId=null; players=[]; maxPlayers=4; casinoBank={E:5000,D:5000,C:5000,B:5000}; history=[]; currentAngle=0; myPlayerId=null;
     players.push({id:1, name:'Тестовый игрок', cards:{E:50,D:50,C:50,B:50}, bets:[]}); maxPlayers=1; selectedPlayerId=1; myPlayerId=1;
-    renderBank(); drawWheel(currentAngle); renderPlayers(); updateBetsDisplay(); updateHistoryDisplay(); updateSpinState(); updateOnlineUI(); showNotification('Вы вышли из онлайн-режима','system'); addChatMessage('Система', 'Вы перешли в офлайн-режим', true);
+    renderBank(); drawWheel(currentAngle); renderPlayers(); updateBetsDisplay(); updateHistoryDisplay(); updateSpinState(); updateOnlineUI();
+    showNotification('Вы вышли из онлайн-режима','system');
+    addChatMessage('Система', 'Вы перешли в офлайн-режим', true);
   }
   
   function updateOnlineUI(){ const roomSpan=document.getElementById('roomCodeDisplay'); const usersSpan=document.getElementById('onlineUsersList'); if(isOnline && currentRoomId){ roomSpan.innerHTML=`🏠 Комната: ${currentRoomId} 📋`; roomSpan.onclick=copyInviteLink; usersSpan.innerHTML=`👥 ${players.length}/${maxPlayers} игроков | ${isAdmin?'Вы админ, вращайте колесо':'Вы игрок, делайте ставки'}`; } else { roomSpan.innerHTML='🏠 Офлайн'; roomSpan.onclick=null; usersSpan.innerHTML='👤 Офлайн-режим'; } }
